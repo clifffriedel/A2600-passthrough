@@ -1,0 +1,215 @@
+	include "banner_img.asm"
+
+minikernel
+	;setup score pointers to point at my bitmap slices instead
+
+	lda (#<bmp_banner_1_00)
+ if #bmp_banner_1_height != #bmp_banner_1_window
+        clc
+        adc #(#bmp_banner_1_height-#bmp_banner_1_window)
+ ifconst bmp_banner_1_index
+        sec
+        sbc bmp_banner_1_index
+ endif
+ endif
+        sta scorepointers+0
+        lda #>bmp_banner_1_00
+        sta scorepointers+1
+
+	lda (#<bmp_banner_1_01)
+ if #bmp_banner_1_height != #bmp_banner_1_window
+        clc
+        adc #(#bmp_banner_1_height-#bmp_banner_1_window)
+ ifconst bmp_banner_1_index
+        sec
+        sbc bmp_banner_1_index
+ endif
+ endif
+        sta scorepointers+2
+        lda #>bmp_banner_1_01
+        sta scorepointers+3
+
+	lda (#<bmp_banner_1_02)
+ if #bmp_banner_1_height != #bmp_banner_1_window
+        clc
+        adc #(#bmp_banner_1_height-#bmp_banner_1_window)
+ ifconst bmp_banner_1_index
+        sec
+        sbc bmp_banner_1_index
+ endif
+ endif
+        sta scorepointers+4
+        lda #>bmp_banner_1_02
+        sta scorepointers+5
+
+	lda (#<bmp_banner_1_03)
+ if #bmp_banner_1_height != #bmp_banner_1_window
+        clc
+        adc #(#bmp_banner_1_height-#bmp_banner_1_window)
+ ifconst bmp_banner_1_index
+        sec
+        sbc bmp_banner_1_index
+ endif
+ endif
+        sta scorepointers+6
+        lda #>bmp_banner_1_03
+        sta scorepointers+7
+
+	lda (#<bmp_banner_1_04)
+ if #bmp_banner_1_height != #bmp_banner_1_window
+        clc
+        adc #(#bmp_banner_1_height-#bmp_banner_1_window)
+ ifconst bmp_banner_1_index
+        sec
+        sbc bmp_banner_1_index
+ endif
+ endif
+        sta scorepointers+8
+        lda #>bmp_banner_1_04
+        sta scorepointers+9
+
+	lda (#<bmp_banner_1_05)
+ if #bmp_banner_1_height != #bmp_banner_1_window
+        clc
+        adc #(#bmp_banner_1_height-#bmp_banner_1_window)
+ ifconst bmp_banner_1_index
+        sec
+        sbc bmp_banner_1_index
+ endif
+ endif
+        sta scorepointers+10
+        lda #>bmp_banner_1_05
+        sta scorepointers+11
+
+        lda bmp_banner_1_color
+        sta COLUP0              ;3
+        sta COLUP1              ;3
+        sta HMCLR               ;3
+
+	ldy #(bmp_banner_1_window)
+
+draw_bmp_banner
+
+	lda #3
+	sta NUSIZ0	;3=Player and Missile are drawn twice 32 clocks apart 
+	sta NUSIZ1	;3=Player and Missile are drawn twice 32 clocks apart 
+
+ ifconst bannerbackcolor
+	lda bannerbackcolor
+ else
+	lda #0
+ endif
+        sta COLUPF              ;3
+	sta COLUBK
+	lda #5
+	sta CTRLPF
+
+	tsx
+	stx stack4 ;save the stack pointer
+
+	;postion P0 and P1, Ball and Missile0
+	lda #%10010000
+	sta HMP0
+	lda #%10100000
+	sta HMP1
+	lda #%00110000
+	sta HMBL
+	lda #%11110000
+	sta HMM0
+
+	sta WSYNC
+	sleep 29
+	sta RESM0
+	sleep 3
+	sta RESP0 ; 3
+	sta RESP1 ; 3
+	sta RESBL
+	sta WSYNC
+	sta HMOVE 	;3
+
+	lda #0		;2
+	sta VDELP0	;3
+	sta VDELP1	;3
+
+	;sleep (57-7)		;59
+	sleep (57-8-8-10-2)		;59
+	lda #%11111111
+	sta PF1
+	lda #%00000001
+	sta PF2
+
+	lda #2
+	sta ENABL
+	sta ENAM0
+
+	jmp pfbanner_loop_line1 	;3
+
+      if >. != >[.+$2a]
+      align 256
+      endif
+
+pfbanner_loop_line1
+	dey
+	lda (scorepointers+0),y 	;5
+	sta GRP0		;3
+
+        ;fix the lost bit0 in the first character
+        rol             ;2
+        eor #2          ;2
+        sta ENABL       ;3
+
+	lda (scorepointers+2),y 	;5
+	sta GRP1		; 3
+
+	sty aux6
+
+	lax (scorepointers+10),y	; 5
+	txs			; 2	
+	lax (scorepointers+8),y	; 5
+
+	lda (scorepointers+6),y	; 5
+	sta aux5
+	lda (scorepointers+4),y	; 5
+	ldy aux5
+
+	sta GRP0
+	sty GRP1
+	stx GRP0
+	tsx
+	stx GRP1
+
+	ldy aux6
+	
+	;dey			;2
+	;bpl pfbanner_loop_line1		;2/3
+	bne pfbanner_loop_line1		;2/3
+
+pfbanner_codeend
+ ;echo "critical code in banner is ",(pfbanner_codeend-pfbanner_loop_line1), " bytes long."
+
+	lda #0
+	sta GRP0
+	sta GRP1
+	sta ENABL
+	sta ENAM0
+	sta PF1
+	sta PF2
+
+	ldx stack4 ;restore the stack pointer
+	txs
+
+	;fix the bB score pointers, which we borrowed...
+	lax score+2
+	jsr scorepointerset
+	sty scorepointers+5
+	stx scorepointers+2
+	lax score+1
+	jsr scorepointerset
+	sty scorepointers+4
+	stx scorepointers+1
+	lax score
+	jsr scorepointerset
+	sty scorepointers+3
+	stx scorepointers
+
+	rts
